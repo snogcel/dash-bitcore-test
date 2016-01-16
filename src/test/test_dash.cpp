@@ -23,6 +23,7 @@ CWallet* pwalletMain;
 
 extern bool fPrintToConsole;
 extern void noui_connect();
+extern void GenerateAlertTests();
 
 struct TestingSetup {
     CCoinsViewDB *pcoinsdbview;
@@ -34,6 +35,8 @@ struct TestingSetup {
         fPrintToDebugLog = false; // don't want to write to debug.log file
         fCheckBlockIndex = true;
         SelectParams(CBaseChainParams::UNITTEST);
+        // Uncomment this to generate alert test data
+        // GenerateAlertTests();
         noui_connect();
 #ifdef ENABLE_WALLET
         bitdb.MakeMock();

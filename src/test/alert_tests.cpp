@@ -78,6 +78,82 @@
 }
 #endif
 
+#if 1
+// Sign a CAlert and serialize it
+bool SignAndSerialize(CAlert &alert, CDataStream &buffer)
+{
+    // Sign
+    if(!SignAlert(alert))
+    {
+        printf("SignAndSerialize() : could not sign alert:\n%s", alert.ToString().c_str());
+        return false;
+    }
+
+    // ...and save!
+    buffer << alert;
+    return true;
+}
+
+void GenerateAlertTests()
+{
+    CDataStream sBuffer(SER_DISK, CLIENT_VERSION);
+
+    CAlert alert;
+    alert.nRelayUntil   = 60;
+    alert.nExpiration   = 24 * 60 * 60;
+    alert.nID           = 1;
+    alert.nCancel       = 0;  // cancels previous messages up to this ID number
+    alert.nMinVer       = 0;  // These versions are protocol versions
+    alert.nMaxVer       = 999001;
+    alert.nPriority     = 1;
+    alert.strComment    = "Alert comment";
+    alert.strStatusBar  = "Alert 1";
+
+    SignAndSerialize(alert, sBuffer);
+
+    // More tests go here ...
+    alert.setSubVer.insert(std::string("/Satoshi:0.1.0/"));
+    alert.strStatusBar  = "Alert 1 for Satoshi 0.1.0";
+    SignAndSerialize(alert, sBuffer);
+
+    alert.setSubVer.insert(std::string("/Satoshi:0.2.0/"));
+    alert.strStatusBar  = "Alert 1 for Satoshi 0.1.0, 0.2.0";
+    SignAndSerialize(alert, sBuffer);
+
+    alert.setSubVer.clear();
+    ++alert.nID;
+    alert.nCancel = 1;
+    alert.nPriority = 100;
+    alert.strStatusBar  = "Alert 2, cancels 1";
+    SignAndSerialize(alert, sBuffer);
+
+    alert.nExpiration += 60;
+    ++alert.nID;
+    SignAndSerialize(alert, sBuffer);
+
+    ++alert.nID;
+    alert.nMinVer = 11;
+    alert.nMaxVer = 22;
+    SignAndSerialize(alert, sBuffer);
+
+    ++alert.nID;
+    alert.strStatusBar  = "Alert 2 for Satoshi 0.1.0";
+    alert.setSubVer.insert(std::string("/Satoshi:0.1.0/"));
+    SignAndSerialize(alert, sBuffer);
+
+    ++alert.nID;
+    alert.nMinVer = 0;
+    alert.nMaxVer = 999999;
+    alert.strStatusBar  = "Evil Alert'; /bin/ls; echo '";
+    alert.setSubVer.clear();
+    SignAndSerialize(alert, sBuffer);
+
+    // Print the hex array, which will become the contents of alertTest.raw.h
+    std::vector<unsigned char> vch = std::vector<unsigned char>(sBuffer.begin(), sBuffer.end());
+    printf("Finished generating unit test alerts, replace alertTests[] content in alertTest.raw.h with this:\n%s\n", HexStrArray(vch, 8).c_str());
+}
+#endif
+
 struct ReadAlerts
 {
     ReadAlerts()

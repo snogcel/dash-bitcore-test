@@ -73,6 +73,7 @@ BITCOIN_CORE_H = \
   activemasternode.h \
   addrman.h \
   alert.h \
+  alertkeys.h \
   allocators.h \
   amount.h \
   base58.h \
@@ -196,6 +197,7 @@ libbitcoin_server_a_SOURCES = \
   rpcrawtransaction.cpp \
   rpcserver.cpp \
   script/sigcache.cpp \
+  sendalert.cpp \
   timedata.cpp \
   txdb.cpp \
   txmempool.cpp \

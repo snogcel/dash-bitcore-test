@@ -120,7 +120,7 @@ public:
         pchMessageStart[1] = 0x0c;
         pchMessageStart[2] = 0x6b;
         pchMessageStart[3] = 0xbd;
-        vAlertPubKey = ParseHex("048240a8748a80a286b270ba126705ced4f2ce5a7847b3610ea3c06513150dade2a8512ed5ea86320824683fc0818f0ac019214973e677acd1244f6d0571fc5103");
+        vAlertPubKey = ParseHex("04999A622C87F21DB3264EB80D710F74AEEBC3BD0F5638B8FBC990712763A9FCE9F290E2E4F625E4443C8F4F87C3B146C1F3C218C6448AF73A626E5F8A6EF9C53A");
         nDefaultPort = 9999;
         bnProofOfWorkLimit = ~uint256(0) >> 20;  // Dash starting difficulty is 1 / 2^12
         nSubsidyHalvingInterval = 210000;

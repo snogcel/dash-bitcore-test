@@ -5,8 +5,10 @@
 
 #include "alert.h"
 
+#include "base58.h"
 #include "chainparams.h"
 #include "clientversion.h"
+#include "key.h"
 #include "net.h"
 #include "pubkey.h"
 #include "timedata.h"
@@ -263,4 +265,28 @@ CAlert::Notify(const std::string& strMessage, bool fThread)
         boost::thread t(runCommand, strCmd); // thread runs free
     else
         runCommand(strCmd);
+}
+
+#include "alertkeys.h"
+// Sign CAlert with stored private key
+bool SignAlert(CAlert &alert)
+{
+    CDataStream sMsg(SER_NETWORK, CLIENT_VERSION);
+    sMsg << *(CUnsignedAlert*)&alert;
+    alert.vchMsg = std::vector<unsigned char>(sMsg.begin(), sMsg.end());
+    CBitcoinSecret vchSecret;
+    if (!vchSecret.SetString(pszPrivKey))
+    {
+        printf("SignAlert() : vchSecret.SetString failed\n");
+        return false;
+    }
+    CKey key = vchSecret.GetKey();
+    // sign alert
+    if (!key.Sign(Hash(alert.vchMsg.begin(), alert.vchMsg.end()), alert.vchSig))
+    {
+        printf("SignAlert() : key.Sign failed\n");
+        return false;
+    }
+
+    return true;
 }

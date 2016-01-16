@@ -249,4 +249,40 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
     }
 }
 
+// Code to output a C-style array of values
+template<typename T>
+std::string HexStrArray(const T itbegin, const T itend, int lineLength)
+{
+    std::string rv;
+    static const char hexmap[16] = { '0', '1', '2', '3', '4', '5', '6', '7',
+                                     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+    rv.reserve((itend-itbegin)*3);
+    int i = 0;
+    for(T it = itbegin; it < itend; ++it)
+    {
+        unsigned char val = (unsigned char)(*it);
+        if(it != itbegin)
+        {
+            if (i % lineLength == 0)
+                rv.push_back('\n');
+            else
+                rv.push_back(' ');
+        }
+        rv.push_back('0');
+        rv.push_back('x');
+        rv.push_back(hexmap[val>>4]);
+        rv.push_back(hexmap[val&15]);
+        rv.push_back(',');
+        i++;
+    }
+
+    return rv;
+}
+
+template<typename T>
+inline std::string HexStrArray(const T& vch, int lineLength)
+{
+    return HexStrArray(vch.begin(), vch.end(), lineLength);
+}
+
 #endif // BITCOIN_UTIL_H
