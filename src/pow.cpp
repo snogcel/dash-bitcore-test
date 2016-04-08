@@ -241,7 +241,7 @@ unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nF
     return bnNew.GetCompact();
 }
 
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params)
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params& params, bool fGenerate)
 {
     bool fNegative;
     bool fOverflow;
@@ -255,7 +255,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&
 
     // Check proof of work matches claimed amount
     if (UintToArith256(hash) > bnTarget)
-        return error("CheckProofOfWork(): hash doesn't match nBits");
+        return fGenerate ? false : error("CheckProofOfWork(): hash doesn't match nBits");
 
     return true;
 }
