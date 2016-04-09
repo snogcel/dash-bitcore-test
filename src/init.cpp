@@ -1726,6 +1726,12 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 }
             }
         }
+
+        // After the initializing is done, we update already tracked unspents
+        // FIXME: remove this after wallet refactoring is applied
+        // (i.e fc7c60d6998a330966ffe99274c93b5278ed2ee1 and 25340b7cd58c3451ae91c7b501fdff70ef05ec80)
+        pwalletMain->UpdateUnspents();
+
         pwalletMain->SetBroadcastTransactions(GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
     } // (!fDisableWallet)
 #else // ENABLE_WALLET
