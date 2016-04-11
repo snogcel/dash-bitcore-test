@@ -1954,11 +1954,52 @@ CAmount CWallet::GetBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
-        {
-            const CWalletTx* pcoin = &(*it).second;
-            if (pcoin->IsTrusted())
-                nTotal += pcoin->GetAvailableCredit();
+        // for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        // {
+        //     const CWalletTx* pcoin = &(*it).second;
+        //     if (pcoin->IsTrusted())
+        //         nTotal += pcoin->GetAvailableCredit();
+        // }
+        std::set<const CWalletTx*> rejectedCoins;
+        for (TxUnspents::const_iterator uit = mapTxUnspents.begin(); uit != mapTxUnspents.end(); ++uit) {
+            const COutPoint& outpoint = uit->first;
+            const CWalletTx* pcoin = (uit->second).first;
+
+            if (!(pcoin->vout[outpoint.n].nValue > 0))
+                continue;
+
+            if (rejectedCoins.find(pcoin) != rejectedCoins.end())
+                continue;
+
+            if (!CheckFinalTx(*pcoin)) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            if (!pcoin->IsTrusted()) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            int nDepth = pcoin->GetDepthInMainChain(false);
+
+             // We should not consider coins which aren't at least in our mempool
+             // It's possible for these to be conflicted via ancestors which we may never be able to detect
+            if (nDepth < 0 || (nDepth == 0 && !pcoin->InMempool())) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            isminetype mine = (uit->second).second;
+            if((mine & ISMINE_SPENDABLE) == ISMINE_NO)
+                continue;
+
+            nTotal += pcoin->vout[outpoint.n].nValue;
         }
     }
 
@@ -1972,12 +2013,72 @@ CAmount CWallet::GetAnonymizableBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
-        {
-            const CWalletTx* pcoin = &(*it).second;
+        // for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        // {
+        //     const CWalletTx* pcoin = &(*it).second;
 
-            if (pcoin->IsTrusted())
-               nTotal += pcoin->GetAnonymizableCredit();
+        //     if (pcoin->IsTrusted())
+        //        nTotal += pcoin->GetAnonymizableCredit();
+        // }
+        std::set<const CWalletTx*> rejectedCoins;
+        for (TxUnspents::const_iterator uit = mapTxUnspents.begin(); uit != mapTxUnspents.end(); ++uit) {
+            const COutPoint& outpoint = uit->first;
+            const uint256& wtxid = outpoint.hash;
+            const CWalletTx* pcoin = (uit->second).first;
+
+            if (!(pcoin->vout[outpoint.n].nValue > 0))
+                continue;
+
+            if (IsLockedCoin(wtxid, outpoint.n))
+                continue;
+
+            if (rejectedCoins.find(pcoin) != rejectedCoins.end())
+                continue;
+
+            if (!CheckFinalTx(*pcoin)) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            if (!pcoin->IsTrusted()) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            int nDepth = pcoin->GetDepthInMainChain(false);
+
+             // We should not consider coins which aren't at least in our mempool
+             // It's possible for these to be conflicted via ancestors which we may never be able to detect
+            if (nDepth < 0 || (nDepth == 0 && !pcoin->InMempool())) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            // do not count MN-like outputs
+            if(fMasterNode && pcoin->vout[outpoint.n].nValue == 1000*COIN)
+                continue;
+
+            // do not count outputs that are 10 times smaller then the smallest denomination
+            // otherwise they will just lead to higher fee / lower priority
+            if(pcoin->vout[outpoint.n].nValue <= darkSendDenominations[darkSendDenominations.size() - 1]/10)
+                continue;
+
+            isminetype mine = (uit->second).second;
+            if((mine & ISMINE_SPENDABLE) == ISMINE_NO)
+                continue;
+
+            const CTxIn vin = CTxIn(outpoint);
+            const int rounds = GetInputDarksendRounds(vin);
+
+            if(rounds <-2 || rounds >= nDarksendRounds)
+                continue;
+
+            nTotal += pcoin->vout[outpoint.n].nValue;
         }
     }
 
@@ -1991,12 +2092,60 @@ CAmount CWallet::GetAnonymizedBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
-        {
-            const CWalletTx* pcoin = &(*it).second;
+        // for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        // {
+        //     const CWalletTx* pcoin = &(*it).second;
 
-            if (pcoin->IsTrusted())
-                nTotal += pcoin->GetAnonymizedCredit();
+        //     if (pcoin->IsTrusted())
+        //         nTotal += pcoin->GetAnonymizedCredit();
+        // }
+        std::set<const CWalletTx*> rejectedCoins;
+        for (TxUnspents::const_iterator uit = mapTxUnspents.begin(); uit != mapTxUnspents.end(); ++uit) {
+            const COutPoint& outpoint = uit->first;
+            const CWalletTx* pcoin = (uit->second).first;
+
+            if (!(pcoin->vout[outpoint.n].nValue > 0))
+                continue;
+
+            if (rejectedCoins.find(pcoin) != rejectedCoins.end())
+                continue;
+
+            if (!CheckFinalTx(*pcoin)) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            if (!pcoin->IsTrusted()) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            if (pcoin->IsCoinBase()) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            int nDepth = pcoin->GetDepthInMainChain(false);
+
+             // We should not consider coins which aren't at least in our mempool
+             // It's possible for these to be conflicted via ancestors which we may never be able to detect
+            if (nDepth < 0 || (nDepth == 0 && !pcoin->InMempool())) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            const CTxIn vin = CTxIn(outpoint);
+
+            if(!IsDenominated(vin) || GetInputDarksendRounds(vin) < nDarksendRounds){
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            isminetype mine = (uit->second).second;
+            if((mine & ISMINE_SPENDABLE) == ISMINE_NO)
+                continue;
+
+            nTotal += pcoin->vout[outpoint.n].nValue;
         }
     }
 
@@ -2014,22 +2163,66 @@ double CWallet::GetAverageAnonymizedRounds() const
 
     {
         LOCK2(cs_main, cs_wallet);
-        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
-        {
-            const CWalletTx* pcoin = &(*it).second;
+        // for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        // {
+        //     const CWalletTx* pcoin = &(*it).second;
 
-            uint256 hash = (*it).first;
+        //     uint256 hash = (*it).first;
 
-            for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+        //     for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
 
-                CTxIn vin = CTxIn(hash, i);
+        //         CTxIn vin = CTxIn(hash, i);
 
-                if(IsSpent(hash, i) || IsMine(pcoin->vout[i]) != ISMINE_SPENDABLE || !IsDenominated(vin)) continue;
+        //         if(IsSpent(hash, i) || IsMine(pcoin->vout[i]) != ISMINE_SPENDABLE || !IsDenominated(vin)) continue;
 
-                int rounds = GetInputPrivateSendRounds(vin);
-                fTotal += (float)rounds;
-                fCount += 1;
+        //         int rounds = GetInputDarksendRounds(vin);
+        //         fTotal += (float)rounds;
+        //         fCount += 1;
+        //     }
+        // }
+        std::set<const CWalletTx*> rejectedCoins;
+        for (TxUnspents::const_iterator uit = mapTxUnspents.begin(); uit != mapTxUnspents.end(); ++uit) {
+            const COutPoint& outpoint = uit->first;
+            const CWalletTx* pcoin = (uit->second).first;
+
+            if (!(pcoin->vout[outpoint.n].nValue > 0))
+                continue;
+
+            if (rejectedCoins.find(pcoin) != rejectedCoins.end())
+                continue;
+
+            if (!CheckFinalTx(*pcoin)) {
+                rejectedCoins.insert(pcoin);
+                continue;
             }
+
+            if (pcoin->IsCoinBase()) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            int nDepth = pcoin->GetDepthInMainChain(false);
+
+             // We should not consider coins which aren't at least in our mempool
+             // It's possible for these to be conflicted via ancestors which we may never be able to detect
+            if (nDepth < 0 || (nDepth == 0 && !pcoin->InMempool())) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            const CTxIn vin = CTxIn(outpoint);
+
+            if(!IsDenominated(vin)) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            isminetype mine = (uit->second).second;
+            if((mine & ISMINE_SPENDABLE) == ISMINE_NO)
+                continue;
+
+            fTotal += (float)GetInputPrivateSendRounds(vin);
+            fCount += 1;
         }
     }
 
@@ -2048,22 +2241,65 @@ CAmount CWallet::GetNormalizedAnonymizedBalance() const
 
     {
         LOCK2(cs_main, cs_wallet);
-        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
-        {
-            const CWalletTx* pcoin = &(*it).second;
+        // for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        // {
+        //     const CWalletTx* pcoin = &(*it).second;
 
-            uint256 hash = (*it).first;
+        //     uint256 hash = (*it).first;
 
-            for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+        //     for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
 
-                CTxIn vin = CTxIn(hash, i);
+        //         CTxIn vin = CTxIn(hash, i);
 
-                if(IsSpent(hash, i) || IsMine(pcoin->vout[i]) != ISMINE_SPENDABLE || !IsDenominated(vin)) continue;
-                if (pcoin->GetDepthInMainChain() < 0) continue;
+        //         if(IsSpent(hash, i) || IsMine(pcoin->vout[i]) != ISMINE_SPENDABLE || !IsDenominated(vin)) continue;
+        //         if (pcoin->GetDepthInMainChain() < 0) continue;
 
-                int rounds = GetInputPrivateSendRounds(vin);
-                nTotal += pcoin->vout[i].nValue * rounds / nPrivateSendRounds;
+        //         int rounds = GetInputDarksendRounds(vin);
+        //         nTotal += pcoin->vout[i].nValue * rounds / nDarksendRounds;
+        //     }
+        // }
+        std::set<const CWalletTx*> rejectedCoins;
+        for (TxUnspents::const_iterator uit = mapTxUnspents.begin(); uit != mapTxUnspents.end(); ++uit) {
+            const COutPoint& outpoint = uit->first;
+            const CWalletTx* pcoin = (uit->second).first;
+
+            if (!(pcoin->vout[outpoint.n].nValue > 0))
+                continue;
+
+            if (rejectedCoins.find(pcoin) != rejectedCoins.end())
+                continue;
+
+            if (!CheckFinalTx(*pcoin)) {
+                rejectedCoins.insert(pcoin);
+                continue;
             }
+
+            if (pcoin->IsCoinBase()) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            int nDepth = pcoin->GetDepthInMainChain(false);
+
+             // We should not consider coins which aren't at least in our mempool
+             // It's possible for these to be conflicted via ancestors which we may never be able to detect
+            if (nDepth < 0 || (nDepth == 0 && !pcoin->InMempool())) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            const CTxIn vin = CTxIn(outpoint);
+
+            if(!IsDenominated(vin)){
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            isminetype mine = (uit->second).second;
+            if((mine & ISMINE_SPENDABLE) == ISMINE_NO)
+                continue;
+
+            nTotal += pcoin->vout[outpoint.n].nValue * GetInputPrivateSendRounds(vin) / nPrivateSendRounds;
         }
     }
 
@@ -2077,11 +2313,51 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
-        {
-            const CWalletTx* pcoin = &(*it).second;
+        // for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        // {
+        //     const CWalletTx* pcoin = &(*it).second;
 
-            nTotal += pcoin->GetDenominatedCredit(unconfirmed);
+        //     nTotal += pcoin->GetDenominatedCredit(unconfirmed);
+        // }
+        std::set<const CWalletTx*> rejectedCoins;
+        for (TxUnspents::const_iterator uit = mapTxUnspents.begin(); uit != mapTxUnspents.end(); ++uit) {
+            const COutPoint& outpoint = uit->first;
+            const CWalletTx* pcoin = (uit->second).first;
+
+            if (!(pcoin->vout[outpoint.n].nValue > 0))
+                continue;
+
+            if (rejectedCoins.find(pcoin) != rejectedCoins.end())
+                continue;
+
+            if (pcoin->IsCoinBase()) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            int nDepth = pcoin->GetDepthInMainChain(false);
+
+            bool isUnconfirmed = !CheckFinalTx(*pcoin) || (!pcoin->IsTrusted() && nDepth == 0);
+            if(unconfirmed != isUnconfirmed) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+             // We should not consider coins which aren't at least in our mempool
+             // It's possible for these to be conflicted via ancestors which we may never be able to detect
+            if (nDepth < 0 || (nDepth == 0 && !pcoin->InMempool())) {
+                rejectedCoins.insert(pcoin);
+                continue;
+            }
+
+            if(!IsDenominatedAmount(pcoin->vout[outpoint.n].nValue))
+                continue;
+
+            isminetype mine = (uit->second).second;
+            if((mine & ISMINE_SPENDABLE) == ISMINE_NO)
+                continue;
+
+            nTotal += pcoin->vout[outpoint.n].nValue;
         }
     }
 
@@ -2093,11 +2369,31 @@ CAmount CWallet::GetUnconfirmedBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
-        {
-            const CWalletTx* pcoin = &(*it).second;
-            if (!CheckFinalTx(*pcoin) || (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0))
-                nTotal += pcoin->GetAvailableCredit();
+        // for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        // {
+        //     const CWalletTx* pcoin = &(*it).second;
+        //     if (!CheckFinalTx(*pcoin) || (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0))
+        //         nTotal += pcoin->GetAvailableCredit();
+        // }
+        std::set<const CWalletTx*> rejectedCoins;
+        for (TxUnspents::const_iterator uit = mapTxUnspents.begin(); uit != mapTxUnspents.end(); ++uit) {
+            const COutPoint& outpoint = uit->first;
+            const CWalletTx* pcoin = (uit->second).first;
+
+            if (!(pcoin->vout[outpoint.n].nValue > 0))
+                continue;
+
+            if (rejectedCoins.find(pcoin) != rejectedCoins.end())
+                continue;
+
+            if (!CheckFinalTx(*pcoin) || (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0)) {
+                isminetype mine = (uit->second).second;
+                if((mine & ISMINE_SPENDABLE) == ISMINE_NO)
+                    continue;
+                nTotal += pcoin->vout[outpoint.n].nValue;
+            } else {
+                rejectedCoins.insert(pcoin);
+            }
         }
     }
     return nTotal;
@@ -2200,8 +2496,10 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
 
             int nDepth = pcoin->GetDepthInMainChain(false);
             // do not use IX for inputs that have less then 6 blockchain confirmations
-            if (useIX && nDepth < 6)
+            if (useIX && nDepth < 6) {
+                rejectedCoins.insert(pcoin);
                 continue;
+            }
 
              // We should not consider coins which aren't at least in our mempool
              // It's possible for these to be conflicted via ancestors which we may never be able to detect
