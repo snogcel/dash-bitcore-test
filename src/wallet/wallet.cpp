@@ -2073,9 +2073,9 @@ CAmount CWallet::GetAnonymizableBalance() const
                 continue;
 
             const CTxIn vin = CTxIn(outpoint);
-            const int rounds = GetInputDarksendRounds(vin);
+            const int rounds = GetInputPrivateSendRounds(vin);
 
-            if(rounds <-2 || rounds >= nDarksendRounds)
+            if(rounds <-2 || rounds >= nPrivateSendRounds)
                 continue;
 
             nTotal += pcoin->vout[outpoint.n].nValue;
@@ -2136,7 +2136,7 @@ CAmount CWallet::GetAnonymizedBalance() const
 
             const CTxIn vin = CTxIn(outpoint);
 
-            if(!IsDenominated(vin) || GetInputDarksendRounds(vin) < nDarksendRounds){
+            if(!IsDenominated(vin) || GetInputPrivateSendRounds(vin) < nPrivateSendRounds){
                 rejectedCoins.insert(pcoin);
                 continue;
             }
@@ -2175,7 +2175,7 @@ double CWallet::GetAverageAnonymizedRounds() const
 
         //         if(IsSpent(hash, i) || IsMine(pcoin->vout[i]) != ISMINE_SPENDABLE || !IsDenominated(vin)) continue;
 
-        //         int rounds = GetInputDarksendRounds(vin);
+        //         int rounds = GetInputPrivateSendRounds(vin);
         //         fTotal += (float)rounds;
         //         fCount += 1;
         //     }
@@ -2254,8 +2254,8 @@ CAmount CWallet::GetNormalizedAnonymizedBalance() const
         //         if(IsSpent(hash, i) || IsMine(pcoin->vout[i]) != ISMINE_SPENDABLE || !IsDenominated(vin)) continue;
         //         if (pcoin->GetDepthInMainChain() < 0) continue;
 
-        //         int rounds = GetInputDarksendRounds(vin);
-        //         nTotal += pcoin->vout[i].nValue * rounds / nDarksendRounds;
+        //         int rounds = GetInputPrivateSendRounds(vin);
+        //         nTotal += pcoin->vout[i].nValue * rounds / nPrivateSendRounds;
         //     }
         // }
         std::set<const CWalletTx*> rejectedCoins;
