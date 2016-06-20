@@ -36,6 +36,9 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+/** Date format for persistence */
+static const char* PERSISTENCE_DATE_FORMAT = "yyyy-MM-dd";
+
 TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent), model(0), transactionProxyModel(0),
     transactionView(0)
@@ -46,15 +49,13 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     QHBoxLayout *hlayout = new QHBoxLayout();
     hlayout->setContentsMargins(0,0,0,0);
-
     if (platformStyle->getUseExtraSpacing()) {
-        hlayout->setSpacing(5);
-        hlayout->addSpacing(26);
-    } else {
         hlayout->setSpacing(0);
-        hlayout->addSpacing(23);
+        hlayout->addSpacing(6);
+    } else {
+        hlayout->setSpacing(1);
+        hlayout->addSpacing(5);
     }
-
     QString theme = GUIUtil::getThemeName();
     watchOnlyWidget = new QComboBox(this);
     watchOnlyWidget->setFixedWidth(24);
@@ -65,7 +66,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     dateWidget = new QComboBox(this);
     if (platformStyle->getUseExtraSpacing()) {
-        dateWidget->setFixedWidth(121);
+        dateWidget->setFixedWidth(120);
     } else {
         dateWidget->setFixedWidth(120);
     }
@@ -81,9 +82,9 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     typeWidget = new QComboBox(this);
     if (platformStyle->getUseExtraSpacing()) {
-        typeWidget->setFixedWidth(TYPE_COLUMN_WIDTH+1);
-    } else {
         typeWidget->setFixedWidth(TYPE_COLUMN_WIDTH);
+    } else {
+        typeWidget->setFixedWidth(TYPE_COLUMN_WIDTH-1);
     }
 
     typeWidget->addItem(tr("All"), TransactionFilterProxy::ALL_TYPES);
@@ -108,6 +109,7 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 #if QT_VERSION >= 0x040700
     addressWidget->setPlaceholderText(tr("Enter address or label to search"));
 #endif
+    addressWidget->setObjectName("addressWidget");
     hlayout->addWidget(addressWidget);
 
     amountWidget = new QLineEdit(this);
@@ -115,11 +117,12 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
     amountWidget->setPlaceholderText(tr("Min amount"));
 #endif
     if (platformStyle->getUseExtraSpacing()) {
-        amountWidget->setFixedWidth(97);
+        amountWidget->setFixedWidth(118);
     } else {
-        amountWidget->setFixedWidth(100);
-    }
+        amountWidget->setFixedWidth(125);
+    }  
     amountWidget->setValidator(new QDoubleValidator(0, 1e20, 8, this));
+    amountWidget->setObjectName("amountWidget");
     hlayout->addWidget(amountWidget);
 
     QVBoxLayout *vlayout = new QVBoxLayout(this);
@@ -258,6 +261,8 @@ void TransactionView::chooseDate(int idx)
 {
     if(!transactionProxyModel)
         return;
+    
+    QSettings settings;
     QDate current = QDate::currentDate();
     dateRangeWidget->setVisible(false);
     switch(dateWidget->itemData(idx).toInt())
@@ -286,16 +291,9 @@ void TransactionView::chooseDate(int idx)
                 TransactionFilterProxy::MAX_DATE);
         break;
     case LastMonth:
-        if (current.month() == 1){
-            transactionProxyModel->setDateRange(
-                QDateTime(QDate(current.year()-1, 12, 1)),
-                QDateTime(QDate(current.year(), current.month(), 1)));
-        }
-        else {
-            transactionProxyModel->setDateRange(
+        transactionProxyModel->setDateRange(
                 QDateTime(QDate(current.year(), current.month(), 1).addMonths(-1)),
                 QDateTime(QDate(current.year(), current.month(), 1)));
-        }
         break;
     case ThisYear:
         transactionProxyModel->setDateRange(
@@ -307,10 +305,11 @@ void TransactionView::chooseDate(int idx)
         dateRangeChanged();
         break;
     }
-    // Persist settings
-    if (dateWidget->itemData(idx).toInt() != Range){
-        QSettings settings;
-        settings.setValue("transactionDate", idx);
+    // Persist new date settings
+    settings.setValue("transactionDate", idx);
+    if (dateWidget->itemData(idx).toInt() == Range){
+        settings.setValue("transactionDateFrom", dateFrom->date().toString(PERSISTENCE_DATE_FORMAT));
+        settings.setValue("transactionDateTo", dateTo->date().toString(PERSISTENCE_DATE_FORMAT));
     }
 }
 
@@ -514,6 +513,11 @@ void TransactionView::openThirdPartyTxUrl(QString url)
 
 QWidget *TransactionView::createDateRangeWidget()
 {
+    // Create default dates in case nothing is persisted
+    QString defaultDateFrom = QDate::currentDate().toString(PERSISTENCE_DATE_FORMAT);
+    QString defaultDateTo = QDate::currentDate().addDays(1).toString(PERSISTENCE_DATE_FORMAT);
+    QSettings settings;
+ 
     dateRangeWidget = new QFrame();
     dateRangeWidget->setFrameStyle(QFrame::Panel | QFrame::Raised);
     dateRangeWidget->setContentsMargins(1,1,1,1);
@@ -523,18 +527,20 @@ QWidget *TransactionView::createDateRangeWidget()
     layout->addWidget(new QLabel(tr("Range:")));
 
     dateFrom = new QDateTimeEdit(this);
-    dateFrom->setDisplayFormat("dd/MM/yy");
     dateFrom->setCalendarPopup(true);
     dateFrom->setMinimumWidth(100);
-    dateFrom->setDate(QDate::currentDate().addDays(-7));
+    // Load persisted FROM date
+    dateFrom->setDate(QDate::fromString(settings.value("transactionDateFrom", defaultDateFrom).toString(), PERSISTENCE_DATE_FORMAT));
+
     layout->addWidget(dateFrom);
     layout->addWidget(new QLabel(tr("to")));
 
     dateTo = new QDateTimeEdit(this);
-    dateTo->setDisplayFormat("dd/MM/yy");
     dateTo->setCalendarPopup(true);
     dateTo->setMinimumWidth(100);
-    dateTo->setDate(QDate::currentDate());
+    // Load persisted TO date
+    dateTo->setDate(QDate::fromString(settings.value("transactionDateTo", defaultDateTo).toString(), PERSISTENCE_DATE_FORMAT));
+
     layout->addWidget(dateTo);
     layout->addStretch();
 
@@ -552,9 +558,15 @@ void TransactionView::dateRangeChanged()
 {
     if(!transactionProxyModel)
         return;
+    
+    // Persist new date range
+    QSettings settings;
+    settings.setValue("transactionDateFrom", dateFrom->date().toString(PERSISTENCE_DATE_FORMAT));
+    settings.setValue("transactionDateTo", dateTo->date().toString(PERSISTENCE_DATE_FORMAT));
+    
     transactionProxyModel->setDateRange(
             QDateTime(dateFrom->date()),
-            QDateTime(dateTo->date()).addDays(1));
+            QDateTime(dateTo->date()));
 }
 
 void TransactionView::focusTransaction(const QModelIndex &idx)
@@ -599,6 +611,6 @@ bool TransactionView::eventFilter(QObject *obj, QEvent *event)
 // show/hide column Watch-only
 void TransactionView::updateWatchOnlyColumn(bool fHaveWatchOnly)
 {
-    watchOnlyWidget->setVisible(fHaveWatchOnly);
+    watchOnlyWidget->setVisible(true);
     transactionView->setColumnHidden(TransactionTableModel::Watchonly, !fHaveWatchOnly);
 }

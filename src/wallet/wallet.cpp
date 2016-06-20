@@ -279,6 +279,11 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool anonymizeOnly
             if (CCryptoKeyStore::Unlock(vMasterKey))
             {
                 fWalletUnlockAnonymizeOnly = anonymizeOnly;
+                if(nWalletBackups == -2) {
+                    TopUpKeyPool();
+                    LogPrintf("Keypool replenished, re-initializing automatic backups.\n");
+                    nWalletBackups = GetArg("-createwalletbackups", 10);
+                }
                 return true;
             }
         }
@@ -3381,6 +3386,7 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
         {
             LOCK(cs_wallet);
             setKeyPool.clear();
+            pwalletMain->nKeysLeftSinceAutoBackup = 0;
             // Note: can't top-up keypool here, because wallet is locked.
             // User will be prompted to unlock wallet the next operation
             // that requires a new key.
@@ -3408,6 +3414,7 @@ DBErrors CWallet::ZapWalletTx(std::vector<CWalletTx>& vWtx)
         {
             LOCK(cs_wallet);
             setKeyPool.clear();
+            pwalletMain->nKeysLeftSinceAutoBackup = 0;
             // Note: can't top-up keypool here, because wallet is locked.
             // User will be prompted to unlock wallet the next operation
             // that requires a new key.
@@ -3489,6 +3496,7 @@ bool CWallet::NewKeyPool()
         BOOST_FOREACH(int64_t nIndex, setKeyPool)
             walletdb.ErasePool(nIndex);
         setKeyPool.clear();
+        pwalletMain->nKeysLeftSinceAutoBackup = 0;
 
         if (IsLocked())
             return false;
@@ -3573,6 +3581,7 @@ void CWallet::KeepKey(int64_t nIndex)
     {
         CWalletDB walletdb(strWalletFile);
         walletdb.ErasePool(nIndex);
+        nKeysLeftSinceAutoBackup = nWalletBackups ? nKeysLeftSinceAutoBackup - 1 : 0;
     }
     LogPrintf("keypool keep %d\n", nIndex);
 }
@@ -3846,12 +3855,16 @@ void CWallet::LockCoin(COutPoint& output)
 {
     AssertLockHeld(cs_wallet); // setLockedCoins
     setLockedCoins.insert(output);
+    std::map<uint256, CWalletTx>::iterator it = mapWallet.find(output.hash);
+    if (it != mapWallet.end()) it->second.MarkDirty(); // recalculate all credits for this tx
 }
 
 void CWallet::UnlockCoin(COutPoint& output)
 {
     AssertLockHeld(cs_wallet); // setLockedCoins
     setLockedCoins.erase(output);
+    std::map<uint256, CWalletTx>::iterator it = mapWallet.find(output.hash);
+    if (it != mapWallet.end()) it->second.MarkDirty(); // recalculate all credits for this tx
 }
 
 void CWallet::UnlockAllCoins()

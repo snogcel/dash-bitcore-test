@@ -143,8 +143,8 @@ UniValue mnsync(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "mnsync [status|reset]\n"
-            "Returns the sync status or resets sync.\n"
+            "mnsync [status|next|reset]\n"
+            "Returns the sync status, updates to the next step or resets it entirely.\n"
         );
 
     std::string strMode = params[0].get_str();
@@ -153,6 +153,7 @@ UniValue mnsync(const UniValue& params, bool fHelp)
         UniValue obj(UniValue::VOBJ);
 
         obj.push_back(Pair("IsBlockchainSynced", masternodeSync.IsBlockchainSynced()));
+        obj.push_back(Pair("CurrentSyncingAssetName", masternodeSync.GetAssetName()));
         obj.push_back(Pair("lastMasternodeList", masternodeSync.lastMasternodeList));
         obj.push_back(Pair("lastMasternodeWinner", masternodeSync.lastMasternodeWinner));
         obj.push_back(Pair("lastBudgetItem", masternodeSync.lastBudgetItem));
@@ -171,6 +172,12 @@ UniValue mnsync(const UniValue& params, bool fHelp)
 
 
         return obj;
+    }
+
+    if(strMode == "next")
+    {
+        masternodeSync.GetNextAsset();
+        return "sync updated to " + masternodeSync.GetAssetName();
     }
 
     if(strMode == "reset")

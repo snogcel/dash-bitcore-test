@@ -42,7 +42,6 @@ UniValue privatesend(const UniValue& params, bool fHelp)
 
         fEnablePrivateSend = true;
         bool result = darkSendPool.DoAutomaticDenominating();
-//        fEnablePrivateSend = result;
         return "Mixing " + (result ? "started successfully" : ("start failed: " + darkSendPool.GetStatus() + ", will retry"));
     }
 
@@ -57,7 +56,12 @@ UniValue privatesend(const UniValue& params, bool fHelp)
     }
 
     if(params[0].get_str() == "status"){
-        return "Mixing status: " + darkSendPool.GetStatus();
+        UniValue obj(UniValue::VOBJ);
+        obj.push_back(Pair("status",            darkSendPool.GetStatus()));
+        obj.push_back(Pair("keys_left",     pwalletMain->nKeysLeftSinceAutoBackup));
+        obj.push_back(Pair("warnings",      (pwalletMain->nKeysLeftSinceAutoBackup < PS_KEYS_THRESHOLD_WARNING
+                                                ? "WARNING: keypool is almost depleted!" : "")));
+        return obj;
     }
 
     return "Unknown command, please see \"help privatesend\"";
@@ -778,6 +782,7 @@ UniValue masternodebroadcast(const UniValue& params, bool fHelp)
 
         int successful = 0;
         int failed = 0;
+        int nDos = 0;
 
         std::vector<CMasternodeBroadcast> vecMnb;
         UniValue returnObj(UniValue::VOBJ);
@@ -788,7 +793,7 @@ UniValue masternodebroadcast(const UniValue& params, bool fHelp)
         BOOST_FOREACH(CMasternodeBroadcast& mnb, vecMnb) {
             UniValue resultObj(UniValue::VOBJ);
 
-            if(mnb.VerifySignature()) {
+            if(mnb.VerifySignature(nDos)) {
                 successful++;
                 resultObj.push_back(Pair("vin", mnb.vin.ToString()));
                 resultObj.push_back(Pair("addr", mnb.addr.ToString()));
@@ -846,7 +851,7 @@ UniValue masternodebroadcast(const UniValue& params, bool fHelp)
 
             int nDos = 0;
             bool fResult;
-            if (mnb.VerifySignature()) {
+            if (mnb.VerifySignature(nDos)) {
                 if (fSafe) {
                     fResult = mnodeman.CheckMnbAndUpdateMasternodeList(mnb, nDos);
                 } else {
