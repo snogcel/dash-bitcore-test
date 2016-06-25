@@ -2300,15 +2300,15 @@ void CDarksendPool::UpdatedBlockTip(const CBlockIndex *pindex)
 //TODO: Rename/move to core
 void ThreadCheckDarkSendPool()
 {
-    if(fLiteMode) return; //disable all Darksend/Masternode related functionality
+    if(fLiteMode) return; // disable all Dash specific functionality
 
     static bool fOneThread;
     if (fOneThread)
         return;
     fOneThread = true;
 
-    // Make this thread recognisable as the Darksend/Masternode thread
-    RenameThread("dash-darksend");
+    // Make this thread recognisable as the PrivateSend thread
+    RenameThread("dash-privatesend");
 
     unsigned int c = 0;
 
