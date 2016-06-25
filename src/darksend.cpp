@@ -242,7 +242,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             }
 
             if (nValueIn > DARKSEND_POOL_MAX) {
-                LogPrintf("dsi -- more than PrivateSend pool max! %s\n", tx.ToString());
+                LogPrintf("dsi -- more than PrivateSend pool max! %s", tx.ToString());
                 errorID = ERR_MAXIMUM;
                 pfrom->PushMessage(NetMsgType::DSSTATUSUPDATE, sessionID, GetState(), GetEntriesCount(), MASTERNODE_REJECTED, errorID);
                 return;
@@ -250,13 +250,13 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
 
             if(!missingTx){
                 if (nValueIn-nValueOut > nValueIn*.01) {
-                    LogPrintf("dsi -- fees are too high! %s\n", tx.ToString());
+                    LogPrintf("dsi -- fees are too high! %s", tx.ToString());
                     errorID = ERR_FEES;
                     pfrom->PushMessage(NetMsgType::DSSTATUSUPDATE, sessionID, GetState(), GetEntriesCount(), MASTERNODE_REJECTED, errorID);
                     return;
                 }
             } else {
-                LogPrintf("dsi -- missing input tx! %s\n", tx.ToString());
+                LogPrintf("dsi -- missing input tx! %s", tx.ToString());
                 errorID = ERR_MISSING_TX;
                 pfrom->PushMessage(NetMsgType::DSSTATUSUPDATE, sessionID, GetState(), GetEntriesCount(), MASTERNODE_REJECTED, errorID);
                 return;
@@ -267,7 +267,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
                 CValidationState validationState;
                 mempool.PrioritiseTransaction(tx.GetHash(), tx.GetHash().ToString(), 1000, 0.1*COIN);
                 if(!AcceptToMemoryPool(mempool, validationState, CTransaction(tx), false, NULL, false, true, true)) {
-                    LogPrintf("dsi -- transaction not valid! \n");
+                    LogPrintf("dsi -- transaction not valid! %s", tx.ToString());
                     errorID = ERR_INVALID_TX;
                     pfrom->PushMessage(NetMsgType::DSSTATUSUPDATE, sessionID, GetState(), GetEntriesCount(), MASTERNODE_REJECTED, errorID);
                     return;
@@ -1157,12 +1157,12 @@ void CDarksendPool::SendDarksendDenominate(std::vector<CTxIn>& vin, std::vector<
             LogPrint("privatesend", "CDarksendPool::SendDarksendDenominate() -- tx in %s\n", i.ToString());
         }
 
-        LogPrintf("Submitting tx %s\n", tx.ToString());
+        LogPrintf("CDarksendPool::SendDarksendDenominate() -- Submitting tx %s", tx.ToString());
 
         mempool.PrioritiseTransaction(tx.GetHash(), tx.GetHash().ToString(), 1000, 0.1*COIN);
         TRY_LOCK(cs_main, lockMain);
         if(!lockMain || !AcceptToMemoryPool(mempool, validationState, CTransaction(tx), false, NULL, false, true, true)){
-            LogPrintf("CDarksendPool::SendDarksendDenominate() -- transaction failed! %s \n", tx.ToString());
+            LogPrintf("CDarksendPool::SendDarksendDenominate() -- transaction failed! %s", tx.ToString());
             UnlockCoins();
             SetNull();
             return;

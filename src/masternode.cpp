@@ -490,7 +490,7 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDos)
 
         if(!AcceptToMemoryPool(mempool, state, CTransaction(tx), false, NULL, false, true, true)) {
             //set nDos
-            LogPrint("masternode", "CMasternodeBroadcast::CheckInputsAndAdd - Failed to accepted Masternode entry tx to mempool - %s\n", tx.ToString());
+            LogPrint("masternode", "CMasternodeBroadcast::CheckInputsAndAdd - Failed to accepted Masternode entry tx to mempool - %s", tx.ToString());
             state.IsInvalid(nDos);
             return false;
         }
