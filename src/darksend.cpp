@@ -500,9 +500,6 @@ std::string CDarksendPool::GetStatus()
 //
 void CDarksendPool::Check()
 {
-    if(fMasterNode) LogPrint("privatesend", "CDarksendPool::Check() - entries count %lu\n", entries.size());
-    //printf("CDarksendPool::Check() %d - %d - %d\n", state, anonTx.CountEntries(), GetTimeMillis()-lastTimeChanged);
-
     if(fMasterNode) {
         LogPrint("privatesend", "CDarksendPool::Check() - entries count %lu\n", entries.size());
 
