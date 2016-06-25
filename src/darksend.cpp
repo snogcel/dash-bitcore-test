@@ -2175,7 +2175,7 @@ bool CDarkSendSigner::VerifyMessage(CPubKey pubkey, vector<unsigned char>& vchSi
     }
 
     if (pubkey2.GetID() != pubkey.GetID()) {
-        errorMessage = strprintf("keys don't match - input: %s, recovered: %s, message: %s, sig: %s\n",
+        errorMessage = strprintf("keys don't match - input: %s, recovered: %s, message: %s, sig: %s",
                     pubkey.GetID().ToString(), pubkey2.GetID().ToString(), strMessage,
                     EncodeBase64(&vchSig[0], vchSig.size()));
         return false;
