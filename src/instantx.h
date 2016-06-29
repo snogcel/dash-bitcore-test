@@ -32,7 +32,7 @@ class CConsensusVote;
 class CTransaction;
 class CTransactionLock;
 
-static const int MIN_INSTANTX_PROTO_VERSION = 70103;
+static const int MIN_INSTANTX_PROTO_VERSION = 70201;
 static const CAmount INSTANTSEND_MIN_FEE = 1 * CENT;
 
 extern map<uint256, CTransaction> mapTxLockReq;
@@ -109,7 +109,7 @@ public:
     int nBlockHeight;
     uint256 txHash;
     std::vector<CConsensusVote> vecConsensusVotes;
-    int nExpiration;
+    int nLockExpirationBlock;
     int nTimeout;
 
     bool SignaturesValid();
