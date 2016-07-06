@@ -28,6 +28,12 @@ public:
     bool NotifyTransaction(const CTransaction &transaction);
 };
 
+class CZMQPublishHashTransactionLockNotifier : public CZMQAbstractPublishNotifier
+{
+public:
+    bool NotifyTransactionLock(const uint256 &hash);
+};
+
 class CZMQPublishRawBlockNotifier : public CZMQAbstractPublishNotifier
 {
 public:
