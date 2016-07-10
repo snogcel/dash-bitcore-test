@@ -57,6 +57,7 @@ the commandline or in the configuration file.
 Currently, the following notifications are supported:
 
     -zmqpubhashtx=address
+    -zmqpubhashtxlock=address
     -zmqpubhashblock=address
     -zmqpubrawblock=address
     -zmqpubrawtx=address

@@ -393,6 +393,7 @@ void UpdateLockedTransaction(CTransaction& tx, bool fForceNotification) {
         int nSignatures = GetTransactionLockSignatures(txHash);
         // a transaction lock must have enough signatures to trigger this notification
         if(nSignatures == INSTANTX_SIGNATURES_REQUIRED || (fForceNotification && nSignatures > INSTANTX_SIGNATURES_REQUIRED)) {
+            GetMainSignals().NotifyTransactionLock(txHash);
             // notify an external script once threshold is reached
             std::string strCmd = GetArg("-instantsendnotify", "");
             if ( !strCmd.empty())

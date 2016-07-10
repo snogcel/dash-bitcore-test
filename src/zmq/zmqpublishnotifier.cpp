@@ -139,6 +139,16 @@ bool CZMQPublishHashTransactionNotifier::NotifyTransaction(const CTransaction &t
     return rc == 0;
 }
 
+bool CZMQPublishHashTransactionLockNotifier::NotifyTransactionLock(const uint256 &hash)
+{
+    LogPrint("zmq", "zmq: Publish hashtxlock %s\n", hash.GetHex());
+    char data[32];
+    for (unsigned int i = 0; i < 32; i++)
+        data[31 - i] = hash.begin()[i];
+    int rc = zmq_send_multipart(psocket, "hashtxlock", 6, data, 32, 0);
+    return rc == 0;
+}
+
 bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
 {
     LogPrint("zmq", "zmq: Publish rawblock %s\n", pindex->GetBlockHash().GetHex());
