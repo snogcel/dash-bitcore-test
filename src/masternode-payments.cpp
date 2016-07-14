@@ -194,7 +194,9 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
 
 
     if (strCommand == NetMsgType::MNWINNERSSYNC) { //Masternode Payments Request Sync
-        if(fLiteMode) return; //disable all Darksend/Masternode related functionality
+
+        // ignore such request until we are fully synced
+        if (!masternodeSync.IsSynced()) return;
 
         int nCountNeeded;
         vRecv >> nCountNeeded;

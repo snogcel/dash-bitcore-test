@@ -253,20 +253,18 @@ void CMasternodeSync::Process()
     }
 
     // INITIAL SYNC SETUP / LOG REPORTING
-    {
-        double nSyncProgress = double(RequestedMasternodeAttempt + (RequestedMasternodeAssets - 1) * 8) / (8*4);
-        LogPrintf("CMasternodeSync::Process() - tick %d RequestedMasternodeAttempt %d RequestedMasternodeAssets %d nSyncProgress %f\n", tick, RequestedMasternodeAttempt, RequestedMasternodeAssets, nSyncProgress);
-        uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
+    double nSyncProgress = double(RequestedMasternodeAttempt + (RequestedMasternodeAssets - 1) * 8) / (8*4);
+    LogPrintf("CMasternodeSync::Process() - tick %d RequestedMasternodeAttempt %d RequestedMasternodeAssets %d nSyncProgress %f\n", tick, RequestedMasternodeAttempt, RequestedMasternodeAssets, nSyncProgress);
+    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
-        if(RequestedMasternodeAssets == MASTERNODE_SYNC_INITIAL) GetNextAsset();
+    // sporks synced but blockchain is not, wait until we're almost at a recent block to continue
+    if(Params().NetworkIDString() != CBaseChainParams::REGTEST &&
+            !IsBlockchainSynced() && RequestedMasternodeAssets > MASTERNODE_SYNC_SPORKS) return;
 
-        // sporks synced but blockchain is not, wait until we're almost at a recent block to continue
-        if(Params().NetworkIDString() != CBaseChainParams::REGTEST &&
-                !IsBlockchainSynced() && RequestedMasternodeAssets > MASTERNODE_SYNC_SPORKS) return;
+    TRY_LOCK(cs_vNodes, lockRecv);
+    if(!lockRecv) return;
 
-        TRY_LOCK(cs_vNodes, lockRecv);
-        if(!lockRecv) return;
-    }
+    if(RequestedMasternodeAssets == MASTERNODE_SYNC_INITIAL) GetNextAsset();
 
     BOOST_FOREACH(CNode* pnode, vNodes)
     {
@@ -301,10 +299,9 @@ void CMasternodeSync::Process()
                 pnode->PushMessage(NetMsgType::GETSPORKS); 
                 
                 // we always ask for sporks, so just skip this
-                if(RequestedMasternodeAssets == MASTERNODE_SYNC_SPORKS){
-                    GetNextAsset();
-                    return;
-                }
+                if(RequestedMasternodeAssets == MASTERNODE_SYNC_SPORKS) GetNextAsset();
+
+                continue; // always get sporks first, switch to the next node for now
             }
             
             // MNLIST : SYNC MASTERNODE LIST FROM OTHER CONNECTED CLIENTS

@@ -313,9 +313,14 @@ public:
 
     uint256 GetHash(){
         CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-        ss << vin;
-        ss << pubkey;
-        ss << sigTime;
+        if(protocolVersion >= 70201) {
+            ss << vin;
+            ss << pubkey;
+            ss << sigTime;
+        } else {
+            ss << sigTime;
+            ss << pubkey;
+        }
         return ss.GetHash();
     }
 

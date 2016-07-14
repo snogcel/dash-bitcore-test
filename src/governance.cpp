@@ -109,6 +109,9 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
     if (strCommand == NetMsgType::MNGOVERNANCESYNC)
     {
 
+        // ignore such request until we are fully synced
+        if (!masternodeSync.IsSynced()) return;
+
         uint256 nProp;
         vRecv >> nProp;
 
